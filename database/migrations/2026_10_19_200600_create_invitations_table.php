@@ -11,6 +11,11 @@ return new class extends Migration
         Schema::create('invitations', function (Blueprint $table) {
             $table->id();
             $table->morphs('invitable');
+            $table->foreignId('agreement_version_id');
+            // The invitation must reference a version of its own subject.
+            $table->foreign(['agreement_version_id', 'invitable_type', 'invitable_id'], 'invitations_version_subject_foreign')
+                ->references(['id', 'agreeable_type', 'agreeable_id'])
+                ->on('agreement_versions')->restrictOnDelete();
             $table->foreignId('invited_by')->constrained('users')->restrictOnDelete();
             $table->foreignId('invitee_id')->nullable()->constrained('users')->restrictOnDelete();
             $table->string('invitee_phone', 16);

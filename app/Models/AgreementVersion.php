@@ -4,10 +4,25 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class AgreementVersion extends Model
 {
+    protected static function booted(): void
+    {
+        static::updating(function (self $version): void {
+            if ($version->isDirty(['terms', 'version', 'agreeable_type', 'agreeable_id'])) {
+                throw new \DomainException('Create a new agreement version instead of changing its terms or subject.');
+            }
+        });
+    }
+
+    public function invitations(): HasMany
+    {
+        return $this->hasMany(Invitation::class);
+    }
+
     protected $fillable = [
         'version',
         'terms',

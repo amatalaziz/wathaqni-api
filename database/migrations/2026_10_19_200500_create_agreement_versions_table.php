@@ -21,6 +21,7 @@ return new class extends Migration
             $table->timestamp('creditor_accepted_at')->nullable();
             $table->timestamp('debtor_accepted_at')->nullable();
             $table->unique(['agreeable_type', 'agreeable_id', 'version'], 'agreement_versions_subject_version_unique');
+            $table->unique(['id', 'agreeable_type', 'agreeable_id'], 'agreement_versions_id_subject_unique');
             $table->timestamps();
         });
     }

@@ -95,4 +95,47 @@ class Debt extends Model
     {
         return $this->payments()->where('confirmation_status', 'confirmed');
     }
+
+    /** Acquire this lock BEFORE any payment, allocation, schedule or principal change. */
+    public static function lockForLedgerUpdate(int $id): self
+    {
+        $model = new static;
+        if ($model->getConnection()->transactionLevel() === 0) {
+            throw new \LogicException('Ledger changes require a database transaction.');
+        }
+
+        return $model->newQuery()->lockForUpdate()->findOrFail($id);
+    }
+
+    /**
+     * Validate persisted changes before committing the transaction holding the debt lock.
+     * Let failures roll back the entire transaction. All writers must use this protocol;
+     * CHECK constraints cannot enforce aggregates across rows, nor can model events
+     * safely validate a multi-row operation before all its changes have been written.
+     * Pending payments reserve capacity but only confirmed payments reduce the balance.
+     */
+    public function assertLedgerWithinLimits(): void
+    {
+        if ($this->getConnection()->transactionLevel() === 0) {
+            throw new \LogicException('Ledger validation requires the transaction holding the debt lock.');
+        }
+
+        $principalExceeded = $this->newQuery()->whereKey($this->getKey())
+            ->where(function (Builder $query): void {
+                $query->whereRaw("(SELECT COALESCE(SUM(amount), 0) FROM payments WHERE debt_id = debts.id AND confirmation_status <> 'rejected') > debts.amount")
+                    ->orWhereRaw('(SELECT COALESCE(SUM(amount), 0) FROM debt_schedules WHERE debt_id = debts.id) > debts.amount');
+            })->exists();
+
+        $paymentExceeded = $this->payments()
+            ->whereRaw('(SELECT COALESCE(SUM(amount), 0) FROM payment_allocations WHERE payment_id = payments.id) > payments.amount')
+            ->exists();
+
+        $scheduleExceeded = $this->schedules()
+            ->whereRaw("(SELECT COALESCE(SUM(payment_allocations.amount), 0) FROM payment_allocations INNER JOIN payments ON payments.id = payment_allocations.payment_id WHERE payment_allocations.debt_schedule_id = debt_schedules.id AND payments.confirmation_status <> 'rejected') > debt_schedules.amount")
+            ->exists();
+
+        if ($principalExceeded || $paymentExceeded || $scheduleExceeded) {
+            throw new \DomainException('Payments, schedules or allocations exceed the debt, payment or installment amount.');
+        }
+    }
 }

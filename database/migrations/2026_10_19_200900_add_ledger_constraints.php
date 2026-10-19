@@ -25,7 +25,8 @@ return new class extends Migration
         ],
         'payments' => [
             'payments_amount_positive' => 'amount > 0',
-            'payments_confirmation_valid' => "(confirmation_status = 'confirmed' AND confirmed_by IS NOT NULL AND confirmed_at IS NOT NULL AND confirmed_by <> recorded_by) OR (confirmation_status <> 'confirmed' AND confirmed_by IS NULL AND confirmed_at IS NULL)",
+            // Actor authorization depends on the debt and belongs in application rules.
+            'payments_confirmation_valid' => "(confirmation_status = 'confirmed' AND confirmed_by IS NOT NULL AND confirmed_at IS NOT NULL) OR (confirmation_status <> 'confirmed' AND confirmed_by IS NULL AND confirmed_at IS NULL)",
         ],
         'payment_allocations' => [
             'allocations_amount_positive' => 'amount > 0',

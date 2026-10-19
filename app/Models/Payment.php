@@ -62,4 +62,18 @@ class Payment extends Model
     {
         return $query->where('confirmation_status', 'confirmed');
     }
+
+    /** Call inside the transaction holding the debt lock, before changing confirmation fields. */
+    public function assertCanBeConfirmedBy(User $user): void
+    {
+        $debt = $this->debt()->firstOrFail();
+        $authorizedId = $debt->visibility === 'shared' ? $debt->creditor_id : $debt->created_by;
+
+        if ($this->confirmation_status !== 'pending'
+            || $authorizedId === null
+            || (string) $authorizedId !== (string) $user->getKey()
+            || ($debt->visibility === 'shared' && $debt->agreement_status !== 'accepted')) {
+            throw new \DomainException('Only the creditor of an accepted shared debt, or the private debt owner, may confirm a pending payment.');
+        }
+    }
 }
