@@ -54,6 +54,33 @@ In order to ensure that the Laravel community is welcoming to all, please review
 
 If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
 
+## Debt Management API (v1)
+
+All debt endpoints require a Sanctum bearer token. Money values are decimal
+strings with up to four fractional digits. `direction` is `receivable` (the
+authenticated user is the creditor) or `payable` (the authenticated user is
+the debtor). `visibility` is `private` or `shared`. For a registered
+counterparty send `counterparty_id`; for an unregistered counterparty send both
+`counterparty_name` and `counterparty_phone` in E.164 format.
+
+`POST /api/v1/debts` creates a debt. Its JSON body also requires `amount`,
+`currency` (three uppercase letters), and `debt_date`; `due_date`,
+`description`, and `schedules` are optional. A schedule is an array of
+`{ "sequence": 1, "amount": "50.0000", "due_date": "2026-12-01" }`; sequence
+numbers must be unique and the installment amounts must total the debt amount.
+Creating a shared debt sets its agreement status to `pending`; this API does
+not invite or accept the other party.
+
+The remaining routes are `GET /api/v1/debts` (paginated list),
+`GET /api/v1/debts/{debt}` (details), `PUT /api/v1/debts/{debt}` (replace
+editable debt terms and schedules), and `DELETE /api/v1/debts/{debt}` (logical
+cancellation). The creator can view debts, and both registered parties can
+view a shared debt only after its agreement is accepted. Only the creator can
+edit or cancel it; accepted debts, debts with agreement versions, and debts
+with payment records cannot be edited or cancelled. Cancellation preserves
+the debt record and marks its status as `cancelled`. Balances use confirmed
+payments only; pending shared debts show their full amount.
+
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).

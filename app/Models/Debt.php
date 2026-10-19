@@ -31,6 +31,7 @@ class Debt extends Model
             'debt_date' => 'date',
             'due_date' => 'date',
             'shared_balance' => 'decimal:4',
+            'balance' => 'decimal:4',
         ];
     }
 
@@ -89,6 +90,12 @@ class Debt extends Model
             ->where('debts.agreement_status', 'accepted')
             ->addSelect('debts.*')
             ->selectRaw("(debts.amount - COALESCE((SELECT SUM(payments.amount) FROM payments WHERE payments.debt_id = debts.id AND payments.confirmation_status = 'confirmed'), 0)) AS shared_balance");
+    }
+
+    public function scopeWithCurrentBalance(Builder $query): Builder
+    {
+        return $query->addSelect('debts.*')
+            ->selectRaw("CASE WHEN debts.visibility <> 'shared' OR debts.agreement_status = 'accepted' THEN debts.amount - COALESCE((SELECT SUM(payments.amount) FROM payments WHERE payments.debt_id = debts.id AND payments.confirmation_status = 'confirmed'), 0) ELSE debts.amount END AS balance");
     }
 
     public function confirmedPayments(): HasMany
